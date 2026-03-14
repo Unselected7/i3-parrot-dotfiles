@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# i3blocks Update-Anzeige für Parrot/Debian
+# Zeigt verfügbare APT-Updates
+
+# APT-Updates zählen (Debian/Parrot)
+apt_updates=$(apt list --upgradable 2>/dev/null | grep -c "upgradable" || echo "0")
+
+# Ausgabe für i3blocks
+if [[ $apt_updates -gt 0 ]]; then
+    # Updates verfügbar - rot/gelb
+    echo "󰚰 $apt_updates"  # Volltext
+    echo "󰚰 $apt_updates"  # Kurztext
+    echo "#f38ba8"  # Farbe: rot (Catppuccin)
+else
+    # Keine Updates - grün
+    echo "󰄬 0"     # Volltext
+    echo "󰄬"       # Kurztext  
+    echo "#a6e3a1" # Farbe: grün (Catppuccin)
+fi
+
+# Bei Klick: Update-Menü öffnen
+if [[ -n "$BLOCK_BUTTON" ]]; then
+    case $BLOCK_BUTTON in
+        1) ~/.local/bin/i3-menu &  # Linksklick: Menü
+           # Direkt zum Update-Menü springen wäre schöner, aber erstmal so
+           ;;
+        3) ~/.local/bin/update-checker &  # Rechtsklick: Check jetzt
+           ;;
+    esac
+fi

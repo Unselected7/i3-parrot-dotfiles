@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# Update-Notification-System für i3
+# Prüft System-Updates für Parrot/Debian (APT)
+
+LOG_FILE="/tmp/update-checker.log"
+
+log() {
+    echo "$(date '+%H:%M:%S') $1" >> "$LOG_FILE"
+}
+
+# APT-Updates prüfen (Debian/Parrot)
+check_apt_updates() {
+    local count
+    # Erst apt-Cache aktualisieren (ohne sudo - nur lesend)
+    sudo apt-get update -qq 2>/dev/null || apt-get update -qq 2>/dev/null
+    count=$(apt list --upgradable 2>/dev/null | grep -c "upgradable" || echo "0")
+    echo "$count"
+}
+
+# Notification senden - IMMER Feedback geben!
+send_notification() {
+    local apt_count="$1"
+    
+    if [[ $apt_count -gt 0 ]]; then
+        notify-send "✅ Updates verfügbar" "APT: $apt_count Updates" \
+            -t 5000 \
+            -u normal \
+            -i system-software-update 2>/dev/null || true
+        
+        log "Notification sent: $apt_count updates available"
+        return 0
+    else
+        # IMMER Rückmeldung geben, auch bei 0 Updates
+        notify-send "✅ System aktuell" "Keine Updates verfügbar" \
+            -t 3000 \
+            -u low \
+            -i system-software-update 2>/dev/null || true
+        
+        log "No updates available - notification sent"
+        return 1
+    fi
+}
+
+# Hauptfunktion
+main() {
+    log "=== Update check started (Parrot/Debian) ==="
+    
+    local apt_updates
+    apt_updates=$(check_apt_updates)
+    
+    log "APT updates: $apt_updates"
+    
+    send_notification "$apt_updates"
+}
+
+# Für direkten Aufruf
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

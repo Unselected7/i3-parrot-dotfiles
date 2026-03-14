@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# Zeige aktuellen Font aus alacritty/kitty config
+
+if [[ -f ~/.config/alacritty/alacritty.toml ]]; then
+  grep 'family = ' ~/.config/alacritty/alacritty.toml | head -1 | sed 's/.*family = "\(.*\)".*/\1/'
+elif [[ -f ~/.config/kitty/kitty.conf ]]; then
+  grep '^font_family' ~/.config/kitty/kitty.conf | sed 's/^font_family //'
+else
+  echo "monospace"
+fi

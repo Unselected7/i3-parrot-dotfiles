@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# i3-spezifisch: Setze Font für Terminal-Emulatoren
+
+font_name="$1"
+
+if [[ -n "$font_name" && "$font_name" != "CNCLD" ]]; then
+  if fc-list | grep -iq "$font_name"; then
+    
+    # Alacritty
+    if [[ -f ~/.config/alacritty/alacritty.toml ]]; then
+      sed -i "s/family = \".*\"/family = \"$font_name\"/g" ~/.config/alacritty/alacritty.toml
+    fi
+
+    # Kitty
+    if [[ -f ~/.config/kitty/kitty.conf ]]; then
+      sed -i "s/^font_family .*/font_family $font_name/g" ~/.config/kitty/kitty.conf
+      pkill -USR1 kitty 2>/dev/null
+    fi
+
+    # i3 (falls Font in i3-config genutzt wird)
+    if [[ -f ~/.config/i3/config ]]; then
+      sed -i "s/^font pango:.*/font pango:$font_name 10/g" ~/.config/i3/config
+      i3-msg reload >/dev/null 2>&1
+    fi
+
+    # Call hook on font set
+    if [[ -x "$HOME/.config/i3-themes/hooks/font-set" ]]; then
+      "$HOME/.config/i3-themes/hooks/font-set" "$font_name"
+    fi
+
+    notify-send "Font" "$font_name aktiviert" -t 2000 2>/dev/null || true
+  else
+    echo "Font '$font_name' not found."
+    exit 1
+  fi
+else
+  echo "Usage: i3-font-set <font-name>"
+fi

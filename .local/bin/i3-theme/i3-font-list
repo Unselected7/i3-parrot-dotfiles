@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Liste alle monospace Fonts
+
+fc-list :spacing=100 family | cut -d, -f1 | sort -u

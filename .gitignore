@@ -1,0 +1,31 @@
+# Dotfiles .gitignore
+
+# Persönliche/sensitive Dateien
+*.log
+*.swp
+*.swo
+*~
+
+# Backup-Dateien
+*.bak
+*.backup
+
+# Theme-spezifische temporäre Dateien
+.config/i3-themes/current/theme
+.config/i3-themes/current/background
+
+# Cache und temporäre Dateien
+.cache/
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Persönliche Notizen
+TODO.md
+NOTES.md

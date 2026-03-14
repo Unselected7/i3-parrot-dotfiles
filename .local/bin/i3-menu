@@ -1,0 +1,269 @@
+#!/bin/bash
+
+# i3-Menü mit eigenem Theme-System (ehemals Omarchy-basiert)
+export PATH="$HOME/.local/bin/i3-theme:$PATH"
+
+# Rofi-Menü-Funktion (ersetzt Walker)
+menu() {
+  local prompt="$1"
+  local options="$2"
+  
+  echo -e "$options" | rofi -dmenu -i -p "$prompt" \
+    -theme-str 'window {width: 350px;}' \
+    -theme-str 'listview {lines: 10;}'
+}
+
+# # Walker-Menü-Funktion (von Omarchy übernommen)
+# menu() {
+#   local prompt="$1"
+#   local options="$2"
+#   local extra="$3"
+#
+#   read -r -a args <<<"$extra"
+#
+#   # Walker mit Omarchy-Styling
+#   echo -e "$options" | walker --dmenu --width 350 --minheight 1 --maxheight 600 -p "$prompt…" "${args[@]}" 2>/dev/null
+# }
+
+# Editor-Funktion (von Omarchy übernommen)
+open_in_editor() {
+  notify-send "Config bearbeiten" "$1" -t 2000 2>/dev/null || true
+  terminal nvim "$1"
+}
+
+# Terminal-Funktion
+terminal() {
+  alacritty -e "$@" &
+}
+
+# i3-spezifische Funktionen
+reload_i3() {
+  i3-msg reload
+  notify-send "i3" "Konfiguration neu geladen" -t 2000 2>/dev/null || true
+}
+
+restart_i3() {
+  i3-msg restart
+}
+
+show_main_menu() {
+  case $(menu "i3 Control Center" "🎨  Themes\n⚙️  Config\n📊  Status\n💡  System\n📋  Keybindings\n🔄  i3 Actions") in
+    *Themes*) show_theme_menu ;;
+    *Config*) show_config_menu ;; 
+    *Status*) show_status_menu ;;
+    *System*) show_system_menu ;;
+    *Keybindings*) show_keybindings ;;
+    *Actions*) show_i3_actions ;;
+    *) exit ;;
+  esac
+}
+
+show_theme_menu() {
+  # i3-Theme-System (adaptiert von Omarchy)
+  theme=$(menu "Theme wählen" "$(i3-theme-list)")
+  if [[ -n "$theme" ]]; then
+    i3-theme-set "$theme"
+  fi
+  show_main_menu
+}
+
+show_config_menu() {
+  case $(menu "Konfiguration" "⚙️  i3 Config\n📊  i3blocks Config\n🎭  picom Config\n🔤  Fonts\n🖱️  Input") in
+    *"i3 Config"*) open_in_editor ~/.config/i3/config ;;
+    *"i3blocks Config"*) open_in_editor ~/.config/i3blocks/config ;;
+    *"picom Config"*) open_in_editor ~/.config/picom/picom.conf ;;
+    *Fonts*) show_font_menu ;;
+    *Input*) open_in_editor ~/.config/i3/config ;;
+    *) show_main_menu ;;
+  esac
+}
+
+show_font_menu() {
+  # i3-Font-System (adaptiert von Omarchy)
+  if command -v i3-font-list >/dev/null; then
+    font=$(menu "Font wählen" "$(i3-font-list)" "--width 350" "$(i3-font-current)")
+    if [[ "$font" != "CNCLD" && -n "$font" ]]; then
+      i3-font-set "$font"
+    fi
+  fi
+  show_config_menu
+}
+
+show_system_menu() {
+  case $(menu "System" "🖴  Backup\n🔊  Audio\n📶  Netzwerk\n🔄  Updates\n🗂️  Taskmanager\n🐙  Git" ) in
+    *Backup*) terminal ~/.local/bin/backup-borg.sh ;;
+    *Audio*) terminal wiremix ;;
+    *Netzwerk*) show_network_menu ;;
+    *Updates*) show_update_menu ;;
+    *Taskmanager) terminal ~/Coding/bash/taskmanager/task_scheduler.sh ;;
+    *Git*) show_git_menu ;;
+    *) show_main_menu ;;
+  esac
+}
+
+show_git_menu(){
+  case $(menu "Git Add and Push" "🐙 Obsidian \n🐙 Dotfiles") in
+    *Obsidian*) terminal ~/.local/bin/git_add_push_obsidian ;;
+    *Dotfiles*) terminal ~/.local/bin/git_add_push_dotfiles ;;
+    *) show_system_menu ;;
+  esac
+}
+
+
+show_update_menu() {
+  local apt_updates=$(apt list --upgradable 2>/dev/null | grep -c "upgradable" || echo "0")
+  local update_info="APT Updates: $apt_updates verfügbar"
+  
+  case $(menu "Updates" "🔍  Update-Check\n📥  System Updates ($apt_updates)\n🔔  Notifications testen") in
+    *"Update-Check"*) 
+      ~/.local/bin/update-checker
+      show_update_menu 
+      ;;
+    *"System Updates"*) 
+      if [[ $apt_updates -gt 0 ]]; then
+        terminal sudo apt update && sudo apt upgrade
+      else
+        notify-send "✅ Keine Updates" "Parrot-System ist aktuell\n0 Updates verfügbar" -t 3000 -i system-software-update
+      fi
+      show_update_menu 
+      ;;
+    *"Notifications testen"*) 
+      notify-send "🔔 Test-Notification" "Notifications funktionieren einwandfrei!\n✅ System OK" -t 4000 -i dialog-information
+      show_update_menu 
+      ;;
+    *) show_system_menu ;;
+  esac
+}
+
+show_i3_actions() {
+  case $(menu "i3 Aktionen" "🔄  Config neu laden\n⚡  i3 neustarten\n💻  Terminal\n🌐  Browser\n🤖  ChatGPT") in
+    *"neu laden"*) reload_i3 ;;
+    *"neustarten"*) restart_i3 ;;
+    *Terminal*) alacritty & ;;
+    *Browser*) chromium --ozone-platform=x11 & ;;
+    *ChatGPT*) chromium --app=https://chatgpt.com/ --ozone-platform=x11 & ;;
+    *) show_main_menu ;;
+  esac
+}
+
+show_keybindings() {
+  # Formatierte Keybinding-Liste aus i3-config mit Kategorien
+  local keybindings_file="/tmp/i3-keybindings.txt"
+  
+  # Extrahiere Keybindings mit Kommentaren und Kategorien
+  awk '
+    /^# === .* ===$/ { 
+      category = $0;
+      gsub(/^# === /, "", category);
+      gsub(/ ===$/, "", category);
+      if (category != "") {
+        print "\n" category;
+        print "═══════════════════════════════════════════════════════════════";
+      }
+      next;
+    }
+    /^bindsym/ {
+      # Formatiere Keybinding
+      line = $0;
+      gsub(/bindsym /, "", line);
+      gsub(/exec --no-startup-id /, "", line);
+      gsub(/\$mod/, "Super", line);
+      gsub(/Shift/, "⇧", line);
+      gsub(/Control|Ctrl/, "⌃", line);
+      gsub(/Alt|Mod1/, "Alt", line);
+      gsub(/Return/, "↵", line);
+      
+      # Extrahiere Key und Action
+      if (match(line, /^([^ ]+) +(.*)$/, arr)) {
+        key = arr[1];
+        action = arr[2];
+        
+        # Bereinige Action
+        gsub(/&& \$refresh_i3status/, "", action);
+        gsub(/~\/\.local\/bin\//, "", action);
+        gsub(/--ozone-platform=x11/, "", action);
+        gsub(/  +/, " ", action);
+        
+        # Kürze nur sehr lange Actions
+        if (length(action) > 80) {
+          action = substr(action, 1, 77) "...";
+        }
+        
+        # Zweispaltig mit Tabs für bessere Lesbarkeit
+        printf "%-35s  →  %s\n", key, action;
+      }
+    }
+  ' ~/.config/i3/config > "$keybindings_file"
+  
+  case $(menu "Keybindings" "📋  Liste anzeigen\n💾  Als Datei speichern\n📄  Druckbare Version\n⚙️  Config bearbeiten\n← Zurück") in
+    *"Liste anzeigen"*) 
+      # Zeige mit rofi in sehr breitem Fenster mit Monospace-Font
+      rofi -dmenu -p "i3 Keybindings (ESC = zurück)" \
+        -theme-str 'window {width: 1400px; height: 800px;}' \
+        -theme-str 'listview {lines: 35; scrollbar: true;}' \
+        -theme-str 'element {padding: 3px 5px;}' \
+        -theme-str 'element-text {font: "monospace 11";}' \
+        -no-custom \
+        < "$keybindings_file"
+      show_keybindings
+      ;;
+    *"Als Datei"*) 
+      local save_path="$HOME/i3-keybindings-$(date +%Y%m%d-%H%M).txt"
+      cp "$keybindings_file" "$save_path"
+      notify-send "💾 Keybindings gespeichert" "$save_path" -t 3000 2>/dev/null || true
+      show_keybindings
+      ;;
+    *"Druckbare"*) 
+      # Erstelle HTML-Version mit besserem Layout
+      local html_file="$HOME/i3-keybindings-$(date +%Y%m%d-%H%M).html"
+      cat > "$html_file" <<'EOF'
+<!DOCTYPE html>
+<html><head>
+<title>i3 Keybindings</title>
+<style>
+body { font-family: monospace; max-width: 1000px; margin: 40px auto; padding: 20px; }
+h1 { color: #333; border-bottom: 2px solid #333; }
+h2 { color: #666; margin-top: 30px; border-bottom: 1px solid #999; }
+.binding { display: flex; justify-content: space-between; padding: 5px; }
+.binding:nth-child(even) { background: #f5f5f5; }
+.key { font-weight: bold; color: #d73a49; }
+.action { color: #333; }
+</style>
+</head><body>
+<h1>i3wm Keybindings</h1>
+EOF
+      awk '
+        /^$/ { next; }
+        /────/ { next; }
+        /^[A-Z].*:$/ { 
+          gsub(/:$/, "");
+          print "<h2>" $0 "</h2>";
+          next;
+        }
+        /^ / {
+          gsub(/^ +/, "");
+          if (match($0, /^([^ ]+) +(.*)$/, arr)) {
+            print "<div class=\"binding\">";
+            print "  <span class=\"key\">" arr[1] "</span>";
+            print "  <span class=\"action\">" arr[2] "</span>";
+            print "</div>";
+          }
+        }
+      ' "$keybindings_file" >> "$html_file"
+      echo "</body></html>" >> "$html_file"
+      chromium --ozone-platform=x11 "$html_file" &
+      notify-send "📄 Keybindings geöffnet" "HTML im Browser" -t 3000 2>/dev/null || true
+      show_keybindings
+      ;;
+    *Config*) 
+      open_in_editor ~/.config/i3/config 
+      ;;
+    *) 
+      rm -f "$keybindings_file"
+      show_main_menu 
+      ;;
+  esac
+}
+
+# Start
+show_main_menu

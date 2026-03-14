@@ -1,0 +1,285 @@
+# i3 config file (v4)
+# Migrated from Omarchy/Hyprland configuration
+# Neo QWERTZ DE keyboard layout support
+
+# Set the modifier key (Super/Windows key)
+set $mod Mod4
+
+# Font for window titles. Will also be used by the bar unless a different font
+# is used in the bar {} block below.
+font pango:monospace 10
+
+# Configure Neo QWERTZ DE keyboard layout
+#exec_always --no-startup-id setxkbmap de neo_qwertz
+
+# Start XDG autostart .desktop files using dex. See also
+# https://wiki.archlinux.org/index.php/XDG_Autostart
+exec --no-startup-id dex --autostart --environment i3
+
+# The combination of xss-lock, nm-applet and pactl is a popular choice, so
+# they are included here as an example. Modify as you see fit.
+
+# xss-lock grabs a logind suspend inhibit lock and will use i3lock to lock the
+# screen before suspend. Use loginctl lock-session to lock your screen.
+exec --no-startup-id xss-lock --transfer-sleep-lock -- i3lock --nofork
+
+# NetworkManager is the most popular way to manage wireless networks on Linux,
+# and nm-applet is a desktop environment-independent system tray GUI for it.
+exec --no-startup-id nm-applet
+
+# Start notification daemon (dunst)
+exec --no-startup-id dunst
+
+# Start compositor (picom) normally
+exec --no-startup-id picom
+
+# Periodische Update-Checks (alle 2 Stunden)
+exec --no-startup-id while true; do sleep 7200; ~/.local/bin/update-checker; done
+
+# Disable screen saver and power management
+exec --no-startup-id xset s off
+exec --no-startup-id xset -dpms
+
+# Use pactl to adjust volume in PulseAudio.
+set $refresh_i3status killall -SIGUSR1 i3status
+bindsym XF86AudioRaiseVolume exec --no-startup-id pactl set-sink-volume @DEFAULT_SINK@ +10% && $refresh_i3status
+bindsym XF86AudioLowerVolume exec --no-startup-id pactl set-sink-volume @DEFAULT_SINK@ -10% && $refresh_i3status
+bindsym XF86AudioMute exec --no-startup-id pactl set-sink-mute @DEFAULT_SINK@ toggle && $refresh_i3status
+bindsym XF86AudioMicMute exec --no-startup-id pactl set-source-mute @DEFAULT_SOURCE@ toggle && $refresh_i3status
+
+# Use Mouse+$mod to drag floating windows to their wanted position
+floating_modifier $mod
+
+# move tiling windows via drag & drop by left-clicking into the title bar,
+# or left-clicking anywhere into the window while holding the floating modifier.
+tiling_drag modifier titlebar
+
+# === OMARCHY KEYBINDINGS (adapted from Hyprland) ===
+
+# Terminal (Super+Return)
+#bindsym $mod+Return exec --no-startup-id alacritty
+bindsym $mod+Return exec --no-startup-id kitty
+
+# Close window (Super+W)
+bindsym $mod+w kill
+
+# Application launcher (original Omarchy launcher - robust!)
+bindsym $mod+d exec --no-startup-id rofi -show drun
+
+# i3 Control Center (Super+M) - Omarchy-style menu  
+bindsym $mod+m exec --no-startup-id ~/.local/bin/i3-menu
+
+# File manager (Super+Shift+F)
+bindsym $mod+Shift+f exec --no-startup-id nautilus
+
+# Browser (Super+B and Super+Shift+B)
+bindsym $mod+b exec --no-startup-id chromium --ozone-platform=x11
+bindsym $mod+Shift+b exec --no-startup-id chromium --ozone-platform=x11
+
+# Browser private (Super+Shift+Alt+B)
+bindsym $mod+Shift+Mod1+b exec --no-startup-id chromium --incognito --ozone-platform=x11
+
+# ChatGPT (Super+A)
+bindsym $mod+a exec --no-startup-id chromium --app=https://chatgpt.com/ --ozone-platform=x11
+
+# Editor (Super+Shift+N)
+bindsym $mod+Shift+n exec --no-startup-id code
+
+# Activity monitor (Super+Shift+T)
+bindsym $mod+Shift+t exec --no-startup-id alacritty -e btop
+
+# Obsidian (Super+Shift+O)
+bindsym $mod+Shift+o exec --no-startup-id obsidian
+
+# === BRIGHTNESS CONTROLS ===
+# Normal brightness (F5/F6)
+bindsym XF86MonBrightnessDown exec --no-startup-id brightnessctl set 10%-
+bindsym F5 exec --no-startup-id brightnessctl set 10%-
+bindsym XF86MonBrightnessUp exec --no-startup-id brightnessctl set +10%
+bindsym F6 exec --no-startup-id brightnessctl set +10%
+
+# Super brightness (Ctrl+F5/F6) - Software gamma up to 200%
+bindsym Ctrl+F5 exec --no-startup-id ~/.local/bin/brightness-super down
+bindsym Ctrl+F6 exec --no-startup-id ~/.local/bin/brightness-super up
+
+# === WINDOW NAVIGATION (Omarchy-style) ===
+
+# Change focus (Super + arrow keys)
+bindsym $mod+Left focus left
+bindsym $mod+Down focus down
+bindsym $mod+Up focus up
+bindsym $mod+Right focus right
+
+# Move windows (Super+Shift + arrow keys)
+bindsym $mod+Shift+Left move left
+bindsym $mod+Shift+Down move down
+bindsym $mod+Shift+Up move up
+bindsym $mod+Shift+Right move right
+
+# Split in horizontal orientation (Super+J - similar to togglesplit)
+bindsym $mod+j split h
+
+# Split in vertical orientation
+bindsym $mod+v split v
+
+# Enter fullscreen mode (Super+F)
+bindsym $mod+f fullscreen toggle
+
+# Toggle tiling / floating (Super+T)
+bindsym $mod+t floating toggle
+
+# Change focus between tiling / floating windows
+bindsym $mod+space focus mode_toggle
+
+# Focus the parent container
+bindsym $mod+p focus parent
+
+# === WORKSPACES (Omarchy-style 1-9) ===
+
+# Define names for default workspaces for which we configure key bindings later on.
+set $ws1 "1"
+set $ws2 "2"
+set $ws3 "3"
+set $ws4 "4"
+set $ws5 "5"
+set $ws6 "6"
+set $ws7 "7"
+set $ws8 "8"
+set $ws9 "9"
+set $ws10 "10"
+
+# Switch to workspace (Super + number)
+bindsym $mod+1 workspace number $ws1
+bindsym $mod+2 workspace number $ws2
+bindsym $mod+3 workspace number $ws3
+bindsym $mod+4 workspace number $ws4
+bindsym $mod+5 workspace number $ws5
+bindsym $mod+6 workspace number $ws6
+bindsym $mod+7 workspace number $ws7
+bindsym $mod+8 workspace number $ws8
+bindsym $mod+9 workspace number $ws9
+bindsym $mod+0 workspace number $ws10
+
+# Move focused container to workspace (Super+Shift + number)
+bindsym $mod+Shift+1 move container to workspace number $ws1
+bindsym $mod+Shift+2 move container to workspace number $ws2
+bindsym $mod+Shift+3 move container to workspace number $ws3
+bindsym $mod+Shift+4 move container to workspace number $ws4
+bindsym $mod+Shift+5 move container to workspace number $ws5
+bindsym $mod+Shift+6 move container to workspace number $ws6
+bindsym $mod+Shift+7 move container to workspace number $ws7
+bindsym $mod+Shift+8 move container to workspace number $ws8
+bindsym $mod+Shift+9 move container to workspace number $ws9
+bindsym $mod+Shift+0 move container to workspace number $ws10
+
+# Workspace navigation (Super+Tab, similar to Hyprland)
+bindsym $mod+Tab workspace next
+bindsym $mod+Shift+Tab workspace prev
+
+# Alt+Tab window cycling (similar to Hyprland)
+bindsym Mod1+Tab focus next
+bindsym Mod1+Shift+Tab focus prev
+
+# === SCRATCHPAD (Super+S like Hyprland) ===
+# Make the currently focused window a scratchpad
+bindsym $mod+Shift+s move scratchpad
+
+# Show the first scratchpad window
+bindsym $mod+s scratchpad show
+
+# === RESIZE MODE ===
+# Resize window (Super + minus/equal keys, similar to Hyprland)
+bindsym $mod+minus resize shrink width 10 px or 10 ppt
+bindsym $mod+equal resize grow width 10 px or 10 ppt
+bindsym $mod+Shift+minus resize shrink height 10 px or 10 ppt
+bindsym $mod+Shift+equal resize grow height 10 px or 10 ppt
+
+# Resize mode (Super+R for more precise control)
+mode "resize" {
+        bindsym Left resize shrink width 10 px or 10 ppt
+        bindsym Down resize grow height 10 px or 10 ppt
+        bindsym Up resize shrink height 10 px or 10 ppt
+        bindsym Right resize grow width 10 px or 10 ppt
+
+        # Back to normal: Enter or Escape or $mod+r
+        bindsym Return mode "default"
+        bindsym Escape mode "default"
+        bindsym $mod+r mode "default"
+}
+
+bindsym $mod+r mode "resize"
+
+# === WINDOW APPEARANCE ===
+# Window borders and gaps (similar to Hyprland look)
+default_border pixel 2
+default_floating_border pixel 2
+hide_edge_borders none
+
+# Gaps (uncomment if you want gaps like Hyprland)
+gaps inner 4
+gaps outer 0
+
+# Window colors (will be themed by Omarchy)
+# class                 border  backgr. text    indicator child_border
+client.focused          #c6d0f5 #c6d0f5 #000000 #c6d0f5   #c6d0f5
+client.focused_inactive #333333 #5f676a #ffffff #484e50   #5f676a
+client.unfocused        #333333 #222222 #888888 #292d2e   #222222
+client.urgent           #2f343a #900000 #ffffff #900000   #900000
+client.placeholder      #000000 #0c0c0c #ffffff #000000   #0c0c0c
+
+# === TRANSPARENCY CONTROLS ===
+# Smart transparency toggle (Super+Ctrl+T) - starts picom if needed
+bindsym $mod+Ctrl+t exec --no-startup-id "pgrep picom || picom & sleep 0.5; if [ -f /tmp/transparent ]; then picom-trans -c -o 100 && rm /tmp/transparent; else picom-trans -c -o 85 && touch /tmp/transparent; fi"
+
+# === BAR CONTROLS ===
+# Toggle status bar visibility (Super+Shift+Space)
+bindsym $mod+Shift+space bar mode toggle
+
+# === THEME CONTROLS ===
+# Wallpaper wechseln (Super+Shift+W)
+bindsym $mod+Shift+w exec --no-startup-id "~/.local/bin/i3-theme/i3-theme-bg-next"
+# Theme wechseln (Super+Shift+Y)
+bindsym $mod+Shift+y exec --no-startup-id ~/.local/bin/i3-theme-next
+
+# === SYSTEM CONTROLS ===
+# Reload the configuration file (Super+Shift+C)
+bindsym $mod+Shift+c reload
+
+# Restart i3 inplace (Super+Shift+R)
+bindsym $mod+Shift+r restart
+
+# Exit i3 (Super+Shift+E)
+bindsym $mod+Shift+e exec "i3-nagbar -t warning -m 'You pressed the exit shortcut. Do you really want to exit i3? This will end your X session.' -B 'Yes, exit i3' 'i3-msg exit'"
+
+# Lock screen (similar to Hyprland)
+bindsym $mod+l exec --no-startup-id i3lock
+
+# === STATUS BAR ===
+# Beautiful status bar with i3blocks
+bar {
+        status_command i3blocks
+        position top
+        font pango:JetBrains Mono Nerd Font 9
+        separator_symbol " "
+        tray_output primary
+        
+        colors {
+                background #1e1e2e
+                statusline #c6d0f5
+                separator  #6c7086
+                
+                focused_workspace  #c6d0f5 #c6d0f5 #1e1e2e
+                active_workspace   #313244 #313244 #c6d0f5
+                inactive_workspace #1e1e2e #1e1e2e #6c7086
+                urgent_workspace   #f38ba8 #f38ba8 #1e1e2e
+                binding_mode       #f9e2af #f9e2af #1e1e2e
+        }
+}
+
+# === AUTOSTART ===
+# Set wallpaper (you may need to adjust the path)
+# Set wallpaper on startup/reload
+exec_always --no-startup-id feh --bg-fill ~/.config/i3-themes/current/background 2>/dev/null || feh --bg-fill /usr/share/backgrounds/parrot.jpg 2>/dev/null
+
+# Neo QWERTZ Layout
+exec --no-startup-id ~/neo-qwertz-fix.sh

@@ -1,0 +1,296 @@
+#!/bin/bash
+
+# ============================================================================
+# i3-theme-set - Zentrales Theme-Management für i3wm
+# ============================================================================
+# Wechselt das aktuelle Theme und passt alle konfigurierten Apps an.
+#
+# Apps die automatisch gethemed werden:
+#   - Alacritty (Terminal) - via import
+#   - Kitty (Terminal) - via include  
+#   - Neovim (Editor) - via lazy.nvim
+#   - VSCode (Editor) - via settings.json
+#   - btop (System-Monitor) - via theme copy
+#
+# Usage: i3-theme-set THEME_NAME
+# ============================================================================
+
+THEME_NAME="$1"
+THEMES_DIR="$HOME/.config/i3-themes/themes"
+CURRENT_LINK="$HOME/.config/i3-themes/current/theme"
+
+# ============================================================================
+# Argument-Validierung
+# ============================================================================
+
+if [[ -z "$THEME_NAME" ]]; then
+  echo "Usage: i3-theme-set <theme-name>"
+  echo "Available themes:"
+  ls -1 "$THEMES_DIR" 2>/dev/null | sed 's/^/  - /'
+  exit 1
+fi
+
+# Theme-Namen normalisieren (sowohl "schöne" Namen wie "Catppuccin Latte" als auch "catppuccin-latte")
+# 1. Konvertiere schöne Namen zurück zu Ordner-Format (lowercase, Leerzeichen → Bindestriche)
+NORMALIZED_NAME=$(echo "$THEME_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g')
+
+# 2. Fuzzy-Suche mit normalisiertem Namen (case-insensitive, partial match)
+# -L folgt Symlinks, -mindepth 1 überspringt das themes/-Verzeichnis selbst
+THEME_DIR=$(find -L "$THEMES_DIR" -mindepth 1 -maxdepth 1 -type d -iname "*$NORMALIZED_NAME*" | head -n1)
+
+if [[ -z "$THEME_DIR" || ! -d "$THEME_DIR" ]]; then
+  echo "Theme '$THEME_NAME' not found"
+  echo "Available themes:"
+  ls -1 "$THEMES_DIR" 2>/dev/null | sed 's/^/  - /'
+  exit 1
+fi
+
+THEME_PATH="$THEME_DIR"
+
+# ============================================================================
+# 1. SYMLINK SETZEN - Wichtigster Schritt!
+# ============================================================================
+# Der current/theme Symlink zeigt auf das aktive Theme.
+# Alacritty und Kitty lesen direkt aus diesem Symlink.
+# ============================================================================
+
+echo "Setting theme to: $(basename "$THEME_DIR")"
+mkdir -p "$(dirname "$CURRENT_LINK")"
+ln -nsf "$THEME_DIR" "$CURRENT_LINK"
+
+# ============================================================================
+# 2. BACKGROUND SETZEN
+# ============================================================================
+# Setzt das erste Wallpaper des neuen Themes
+# ============================================================================
+
+if command -v i3-theme-bg-next >/dev/null 2>&1; then
+  i3-theme-bg-next
+else
+  echo "Warning: i3-theme-bg-next not found"
+fi
+
+# ============================================================================
+# 3. APP-THEME UPDATES
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# ALACRITTY - Macht nichts (Symlink genügt)
+# ----------------------------------------------------------------------------
+# Alacritty liest beim Start: ~/.config/i3-themes/current/theme/alacritty.toml
+# Der Symlink zeigt jetzt auf das neue Theme → neue Fenster haben neues Theme
+# ----------------------------------------------------------------------------
+
+update_alacritty_theme() {
+  # Keine Aktion nötig - Symlink-basiert
+  # Neue Alacritty-Fenster laden automatisch das neue Theme
+  true
+}
+
+# ----------------------------------------------------------------------------
+# KITTY - Bereinigt alte includes + reload
+# ----------------------------------------------------------------------------
+# Kitty nutzt: include ~/.config/i3-themes/current/theme/kitty.conf
+# Wir müssen alte omarchy-includes entfernen
+# ----------------------------------------------------------------------------
+
+update_kitty_theme() {
+  local KITTY_CONFIG="$HOME/.config/kitty/kitty.conf"
+  
+  if [[ ! -f "$KITTY_CONFIG" ]]; then
+    return
+  fi
+  
+  if [[ ! -f "$THEME_PATH/kitty.conf" ]]; then
+    echo "Warning: No kitty.conf in theme"
+    return
+  fi
+  
+  # Entferne ALLE alten theme-related includes
+  sed -i '/include.*omarchy.*kitty\.conf/d' "$KITTY_CONFIG"
+  sed -i '/include.*current-theme\.conf/d' "$KITTY_CONFIG"
+  sed -i '/include.*i3-themes.*kitty\.conf/d' "$KITTY_CONFIG"
+  
+  # Füge neue include-Zeile hinzu (nur einmal)
+  echo "include ~/.config/i3-themes/current/theme/kitty.conf" >> "$KITTY_CONFIG"
+  
+  # Reload laufende Kitty-Instanzen
+  if pgrep -x kitty >/dev/null; then
+    kill -SIGUSR1 $(pgrep -x kitty) 2>/dev/null || true
+    echo "  ✓ Kitty: Theme aktiv (reload sent)"
+  fi
+}
+
+# ----------------------------------------------------------------------------
+# NEOVIM - Kopiert Theme-Plugin-Definition
+# ----------------------------------------------------------------------------
+# Neovim nutzt LazyVim mit lazy.nvim Plugin-Manager
+# Theme-Definition: ~/.config/nvim/lua/user/i3_theme.lua
+# Beim nächsten nvim-Start installiert lazy.nvim automatisch das Plugin
+# ----------------------------------------------------------------------------
+
+update_neovim_theme() {
+  local NVIM_THEME_FILE="$HOME/.config/nvim/lua/user/i3_theme.lua"
+  
+  if [[ ! -f "$THEME_PATH/neovim.lua" ]]; then
+    echo "Warning: No neovim.lua in theme"
+    return
+  fi
+  
+  # Erstelle Verzeichnis falls nötig
+  mkdir -p "$(dirname "$NVIM_THEME_FILE")"
+  
+  # Kopiere Theme-Definition
+  cp "$THEME_PATH/neovim.lua" "$NVIM_THEME_FILE"
+  
+  echo "  ✓ Neovim: Theme wird beim nächsten Start aktiv"
+  echo "    (lazy.nvim installiert das Plugin automatisch)"
+}
+
+# ----------------------------------------------------------------------------
+# VSCODE - Setzt Theme-Name in settings.json
+# ----------------------------------------------------------------------------
+# VSCode liest: ~/.config/Code/User/settings.json
+# Wir setzen: "workbench.colorTheme": "Theme Name"
+# Extension muss vom User installiert sein!
+# ----------------------------------------------------------------------------
+
+update_vscode_theme() {
+  local VSCODE_SETTINGS="$HOME/.config/Code/User/settings.json"
+  local VSCODE_THEME_FILE="$THEME_PATH/vscode.json"
+  
+  # Prüfe Voraussetzungen
+  if [[ ! -f "$VSCODE_THEME_FILE" ]]; then
+    return
+  fi
+  
+  if [[ ! -f "$VSCODE_SETTINGS" ]]; then
+    echo "Warning: VSCode settings.json not found"
+    return
+  fi
+  
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "Warning: jq not installed, cannot update VSCode theme"
+    return
+  fi
+  
+  # Parse theme info: {"name": "Theme Name", "extension": "publisher.extension"}
+  local THEME_NAME_VS=$(jq -r '.name // empty' "$VSCODE_THEME_FILE" 2>/dev/null)
+  local EXTENSION=$(jq -r '.extension // empty' "$VSCODE_THEME_FILE" 2>/dev/null)
+  
+  if [[ -z "$THEME_NAME_VS" ]]; then
+    echo "Warning: No theme name in vscode.json"
+    return
+  fi
+  
+  # Update settings.json
+  jq --arg theme "$THEME_NAME_VS" \
+     '.["workbench.colorTheme"] = $theme' \
+     "$VSCODE_SETTINGS" > "${VSCODE_SETTINGS}.tmp" && \
+  mv "${VSCODE_SETTINGS}.tmp" "$VSCODE_SETTINGS"
+  
+  echo "  ✓ VSCode: Theme gesetzt auf '$THEME_NAME_VS'"
+  
+  # Prüfe ob Extension installiert ist
+  if [[ -n "$EXTENSION" ]]; then
+    local EXT_DIR="$HOME/.vscode/extensions"
+    if ! ls "$EXT_DIR"/*"$EXTENSION"* >/dev/null 2>&1; then
+      echo "    ⚠ Extension nicht installiert: $EXTENSION"
+      echo "    Installiere via: Ctrl+Shift+X → Suche '$EXTENSION'"
+    fi
+  fi
+}
+
+# ----------------------------------------------------------------------------
+# BTOP - Kopiert Theme + setzt Config
+# ----------------------------------------------------------------------------
+# btop liest Themes aus: ~/.config/btop/themes/THEME_NAME.theme
+# Config: ~/.config/btop/btop.conf mit color_theme = "THEME_NAME"
+# ----------------------------------------------------------------------------
+
+update_btop_theme() {
+  local BTOP_CONFIG="$HOME/.config/btop/btop.conf"
+  
+  if [[ ! -f "$THEME_PATH/btop.theme" ]]; then
+    return
+  fi
+  
+  # Theme-Name aus Pfad extrahieren
+  local THEME_NAME_BTOP=$(basename "$THEME_DIR")
+  
+  # Erstelle Theme-Verzeichnis
+  mkdir -p "$HOME/.config/btop/themes"
+  
+  # Kopiere Theme-File
+  cp "$THEME_PATH/btop.theme" "$HOME/.config/btop/themes/${THEME_NAME_BTOP}.theme"
+  
+  # Update Config (wenn vorhanden)
+  if [[ -f "$BTOP_CONFIG" ]]; then
+    sed -i "s|^color_theme = .*|color_theme = \"${THEME_NAME_BTOP}\"|" "$BTOP_CONFIG"
+    echo "  ✓ btop: Theme '$THEME_NAME_BTOP' gesetzt"
+  else
+    echo "  ✓ btop: Theme kopiert (config nicht gefunden)"
+  fi
+}
+
+# ============================================================================
+# ALLE APP-UPDATES AUSFÜHREN
+# ============================================================================
+
+echo "Updating applications..."
+update_alacritty_theme
+update_kitty_theme
+update_neovim_theme
+update_vscode_theme
+update_btop_theme
+
+# ============================================================================
+# 4. SYSTEM-COMPONENTS RELOAD
+# ============================================================================
+
+# Reload i3 configuration
+if command -v i3-msg >/dev/null 2>&1; then
+  i3-msg reload >/dev/null 2>&1
+fi
+
+# Reload i3blocks statusbar
+pkill -SIGUSR1 i3blocks 2>/dev/null
+
+# Restart dunst notification daemon
+if pgrep -x dunst >/dev/null; then
+  killall dunst 2>/dev/null
+  dunst &>/dev/null &
+  disown
+fi
+
+# Restart picom compositor (if running)
+if pgrep -x picom >/dev/null; then
+  killall picom 2>/dev/null
+  picom &>/dev/null &
+  disown
+fi
+
+# ============================================================================
+# CUSTOM HOOKS (Optional)
+# ============================================================================
+# Wenn du eigene Scripts beim Theme-Wechsel ausführen willst,
+# erstelle: ~/.config/i3-themes/hooks/theme-changed.sh
+# ============================================================================
+
+if [[ -f "$HOME/.config/i3-themes/hooks/theme-changed.sh" ]]; then
+  "$HOME/.config/i3-themes/hooks/theme-changed.sh" "$(basename "$THEME_DIR")"
+fi
+
+# ============================================================================
+# FERTIG
+# ============================================================================
+
+echo ""
+echo "Theme successfully switched to: $(basename "$THEME_DIR")"
+echo ""
+echo "What happens next:"
+echo "  • Alacritty: New windows will use new theme"
+echo "  • Kitty: Running instances reloaded"
+echo "  • Neovim: Theme active on next start"
+echo "  • VSCode: Restart VSCode to apply theme"
+echo "  • btop: Theme active on next btop start"

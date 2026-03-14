@@ -1,0 +1,87 @@
+# i3blocks config file
+#
+# Please see man i3blocks for a complete reference!
+# The man page is also hosted at http://vivien.github.io/i3blocks
+# Global properties
+separator_block_width=15
+markup=pango
+[focused_window]
+command=xdotool getwindowfocus getwindowname 2>/dev/null || echo "Desktop"
+interval=1
+color=#c6d0f5
+[separator]
+full_text= | 
+color=#6c7086
+[cpu_usage]
+label=CPU 
+command=cat /proc/loadavg | awk '{printf "%.1f", $1}'
+interval=5
+color=#f9e2af
+[separator]
+full_text= | 
+color=#6c7086
+[memory]
+label= 
+command=free -h | awk '/^Mem/ { print $3"/"$2 }' | sed s/i//g
+interval=5
+color=#a6e3a1
+[separator]
+full_text= | 
+color=#6c7086
+[disk]
+label=󰋊 
+command=df -h / | awk 'NR==2{print $4}'
+interval=30
+color=#fab387
+[separator]
+full_text= | 
+color=#6c7086
+[volume]
+label=󰕾 
+command=pactl get-sink-volume @DEFAULT_SINK@ | grep -oE '[0-9]+%' | head -1
+interval=1
+signal=10
+color=#89b4fa
+[separator]
+full_text= | 
+color=#6c7086
+[battery]
+command=~/.local/bin/battery-status
+interval=30
+#[battery]
+#label=󰁹 
+#command=cat /sys/class/power_supply/BAT1/capacity 2>/dev/null | awk '{print $1"%"}' || echo "AC"
+#interval=30
+#color=#a6e3a1
+[separator]
+full_text= | 
+color=#6c7086
+[wifi]
+label=󰖩 
+command=nmcli -t -f NAME,TYPE connection show --active | awk -F: '/:802-11-wireless/ {print $1; exit}' || echo "Disconnected"
+interval=5
+color=#89dceb
+[separator]
+full_text= | 
+color=#6c7086
+[date]
+label=󰃭 
+command=date '+%d.%m.%Y'
+interval=60
+color=#f5c2e7
+[separator]
+full_text= | 
+color=#6c7086
+[time]
+label=󰥔 
+command=date '+%H:%M'
+interval=30
+color=#cba6f7
+[separator]
+full_text= | 
+color=#6c7086
+[updates]
+label=
+command=~/.local/bin/i3blocks-updates
+interval=600
+signal=11

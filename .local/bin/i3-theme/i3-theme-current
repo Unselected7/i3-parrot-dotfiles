@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# Zeige aktuelles Theme
+
+CURRENT_THEME_LINK="$HOME/.config/i3-themes/current/theme"
+
+if [[ -L "$CURRENT_THEME_LINK" ]]; then
+  basename "$(readlink "$CURRENT_THEME_LINK")" | sed -E 's/(^|-)([a-z])/\1\u\2/g; s/-/ /g'
+else
+  echo "No theme set"
+fi

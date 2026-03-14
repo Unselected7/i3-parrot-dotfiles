@@ -1,0 +1,25 @@
+# Window Manager & Bar
+i3-wm
+i3blocks
+i3lock
+i3status
+
+# Compositor & Tools
+picom
+rofi
+feh
+dunst
+
+# Terminal Emulatoren
+alacritty
+kitty
+
+# System Tools
+nm-applet
+xss-lock
+dex
+
+# Optional
+numlockx
+lxappearance
+arandr
