@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# i3-spezifisch: Wechsle zum nächsten Theme
+
+THEMES_DIR="$HOME/.local/share/i3_parrot_design/themes/"
+CURRENT_THEME_LINK="$HOME/.config/i3-themes/current/theme"
+
+# Get list of theme directories (following symlinks)
+THEMES=($(find -L "$THEMES_DIR" -mindepth 1 -maxdepth 1 -type d | sort))
+TOTAL=${#THEMES[@]}
+
+# Get current theme from symlink
+if [[ -L "$CURRENT_THEME_LINK" ]]; then
+  CURRENT_THEME=$(realpath "$CURRENT_THEME_LINK")
+else
+  # Default to first theme if no symlink exists
+  CURRENT_THEME=$(realpath "${THEMES[0]}")
+fi
+
+# Find current theme index
+INDEX=0
+for i in "${!THEMES[@]}"; do
+  THEME_PATH=$(realpath "${THEMES[$i]}")
+  
+  if [[ "$THEME_PATH" == "$CURRENT_THEME" ]]; then
+    INDEX=$i
+    break
+  fi
+done
+
+# Get next theme (wrap around)
+NEXT_INDEX=$(((INDEX + 1) % TOTAL))
+NEXT_THEME_PATH="${THEMES[$NEXT_INDEX]}"
+NEXT_THEME_NAME=$(basename "$NEXT_THEME_PATH")
+
+# Pass the actual directory name to i3-theme-set
+"$HOME/.local/bin/i3-theme-set" "$NEXT_THEME_NAME"

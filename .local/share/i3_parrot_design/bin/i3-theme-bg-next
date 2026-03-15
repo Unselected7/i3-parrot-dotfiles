@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# i3-spezifisch: Wechsle Hintergrund (nutzt feh statt swaybg)
+
+BACKGROUNDS_DIR="$HOME/.config/i3-themes/current/theme/backgrounds/"
+CURRENT_BACKGROUND_LINK="$HOME/.config/i3-themes/current/background"
+
+# Finde nur Bild-Dateien (jpg, jpeg, png) - auch in Unterordnern
+mapfile -d '' -t BACKGROUNDS < <(find -L "$BACKGROUNDS_DIR" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \) -print0 2>/dev/null | sort -z)
+TOTAL=${#BACKGROUNDS[@]}
+
+if [[ $TOTAL -eq 0 ]]; then
+  notify-send "No background found" "No background images in current theme" -t 2000 2>/dev/null
+  # Setze schwarzen Hintergrund
+  xsetroot -solid '#000000' 2>/dev/null
+else
+  # Get current background from symlink
+  if [[ -L "$CURRENT_BACKGROUND_LINK" ]]; then
+    CURRENT_BACKGROUND=$(readlink "$CURRENT_BACKGROUND_LINK")
+  else
+    # Default to first background if no symlink exists
+    CURRENT_BACKGROUND=""
+  fi
+
+  # Find current background index
+  INDEX=-1
+  for i in "${!BACKGROUNDS[@]}"; do
+    if [[ "${BACKGROUNDS[$i]}" == "$CURRENT_BACKGROUND" ]]; then
+      INDEX=$i
+      break
+    fi
+  done
+
+  # Get next background (wrap around)
+  if [[ $INDEX -eq -1 ]]; then
+    # Use the first background when no match was found
+    NEW_BACKGROUND="${BACKGROUNDS[0]}"
+  else
+    NEXT_INDEX=$(((INDEX + 1) % TOTAL))
+    NEW_BACKGROUND="${BACKGROUNDS[$NEXT_INDEX]}"
+  fi
+
+  # Set new background symlink
+  ln -nsf "$NEW_BACKGROUND" "$CURRENT_BACKGROUND_LINK"
+
+  # Set wallpaper with feh (i3-spezifisch)
+  if command -v feh >/dev/null 2>&1; then
+    feh --bg-fill "$CURRENT_BACKGROUND_LINK" 2>/dev/null
+  else
+    echo "Warning: feh not installed, cannot set wallpaper"
+  fi
+fi

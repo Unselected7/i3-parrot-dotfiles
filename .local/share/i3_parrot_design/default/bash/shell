@@ -1,0 +1,25 @@
+# =========================
+# Bash core / completion
+# =========================
+
+# Bash completion MUST be loaded first
+if [ -f /usr/share/bash-completion/bash_completion ]; then
+  source /usr/share/bash-completion/bash_completion
+fi
+
+# =========================
+# History control
+# =========================
+
+shopt -s histappend
+HISTCONTROL=ignoreboth
+HISTSIZE=32768
+HISTFILESIZE="${HISTSIZE}"
+
+# =========================
+# Misc
+# =========================
+
+# Ensure command hashing is off for mise
+set +h
+

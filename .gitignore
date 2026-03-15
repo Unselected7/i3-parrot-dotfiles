@@ -26,6 +26,14 @@ __pycache__/
 .vscode/
 .idea/
 
-# Persönliche Notizen
+# Persönliche Notizen und interne Dokumentation
 TODO.md
 NOTES.md
+Arbeitsdoku/
+.bashrc
+.bash_history
+
+# Test und Debug Dateien
+*-debug
+*-test.sh
+.local/bin/i3-theme-next-debug
