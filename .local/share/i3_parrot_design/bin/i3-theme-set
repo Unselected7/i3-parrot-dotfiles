@@ -7,7 +7,7 @@
 #
 # Apps die automatisch gethemed werden:
 #   - Alacritty (Terminal) - via import
-#   - Kitty (Terminal) - via include  
+#   - Kitty (Terminal) - via include
 #   - Neovim (Editor) - via lazy.nvim
 #   - VSCode (Editor) - via settings.json
 #   - btop (System-Monitor) - via theme copy
@@ -30,13 +30,20 @@ if [[ -z "$THEME_NAME" ]]; then
   exit 1
 fi
 
-# Theme-Namen normalisieren (sowohl "schöne" Namen wie "Catppuccin Latte" als auch "catppuccin-latte")
-# 1. Konvertiere schöne Namen zurück zu Ordner-Format (lowercase, Leerzeichen → Bindestriche)
+# Theme-Namen normalisieren (damit sowohl "nervige" Namen wie "Catppuccin Latte"
+# als auch UNIX freundliche Ordnernamen wie "catppuccin-latte" funktionieren)
+# 1. Konvertiere nervige Namen zurück zu Ordner-Format (lowercase, Leerzeichen → Bindestriche)
 NORMALIZED_NAME=$(echo "$THEME_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g')
 
 # 2. Fuzzy-Suche mit normalisiertem Namen (case-insensitive, partial match)
 # -L folgt Symlinks, -mindepth 1 überspringt das themes/-Verzeichnis selbst
-THEME_DIR=$(find -L "$THEMES_DIR" -mindepth 1 -maxdepth 1 -type d -iname "*$NORMALIZED_NAME*" | head -n1)
+# 2. Erst exakten Match versuchen, dann partial match
+THEME_DIR=$(find -L "$THEMES_DIR" -mindepth 1 -maxdepth 1 -type d -iname "$NORMALIZED_NAME")
+
+# Falls nicht gefunden, partial match (aber mit Wort-Grenzen)
+if [[ -z "$THEME_DIR" ]]; then
+  THEME_DIR=$(find -L "$THEMES_DIR" -mindepth 1 -maxdepth 1 -type d -iname "*$NORMALIZED_NAME*" | head -n1)
+fi
 
 if [[ -z "$THEME_DIR" || ! -d "$THEME_DIR" ]]; then
   echo "Theme '$THEME_NAME' not found"
@@ -91,29 +98,30 @@ update_alacritty_theme() {
 # KITTY - Bereinigt alte includes + reload
 # ----------------------------------------------------------------------------
 # Kitty nutzt: include ~/.config/i3-themes/current/theme/kitty.conf
-# Wir müssen alte omarchy-includes entfernen
+# Beim Theme-Wechsel entfernen wir alte include-Zeilen aus kitty.conf und fügen die neue hinzu.
+# Da kitty mit kitten themes arbeitet, wäre es sonst möglich,
+# dass alte Theme-Definitionen in kitty.conf verbleiben und zu Konflikten führen.
 # ----------------------------------------------------------------------------
 
 update_kitty_theme() {
   local KITTY_CONFIG="$HOME/.config/kitty/kitty.conf"
-  
+
   if [[ ! -f "$KITTY_CONFIG" ]]; then
     return
   fi
-  
+
   if [[ ! -f "$THEME_PATH/kitty.conf" ]]; then
     echo "Warning: No kitty.conf in theme"
     return
   fi
-  
+
   # Entferne ALLE alten theme-related includes
-  sed -i '/include.*omarchy.*kitty\.conf/d' "$KITTY_CONFIG"
   sed -i '/include.*current-theme\.conf/d' "$KITTY_CONFIG"
   sed -i '/include.*i3-themes.*kitty\.conf/d' "$KITTY_CONFIG"
-  
+
   # Füge neue include-Zeile hinzu (nur einmal)
-  echo "include ~/.config/i3-themes/current/theme/kitty.conf" >> "$KITTY_CONFIG"
-  
+  echo "include ~/.config/i3-themes/current/theme/kitty.conf" >>"$KITTY_CONFIG"
+
   # Reload laufende Kitty-Instanzen
   if pgrep -x kitty >/dev/null; then
     kill -SIGUSR1 $(pgrep -x kitty) 2>/dev/null || true
@@ -131,18 +139,18 @@ update_kitty_theme() {
 
 update_neovim_theme() {
   local NVIM_THEME_FILE="$HOME/.config/nvim/lua/user/i3_theme.lua"
-  
+
   if [[ ! -f "$THEME_PATH/neovim.lua" ]]; then
     echo "Warning: No neovim.lua in theme"
     return
   fi
-  
+
   # Erstelle Verzeichnis falls nötig
   mkdir -p "$(dirname "$NVIM_THEME_FILE")"
-  
+
   # Kopiere Theme-Definition
   cp "$THEME_PATH/neovim.lua" "$NVIM_THEME_FILE"
-  
+
   echo "  ✓ Neovim: Theme wird beim nächsten Start aktiv"
   echo "    (lazy.nvim installiert das Plugin automatisch)"
 }
@@ -158,39 +166,39 @@ update_neovim_theme() {
 update_vscode_theme() {
   local VSCODE_SETTINGS="$HOME/.config/Code/User/settings.json"
   local VSCODE_THEME_FILE="$THEME_PATH/vscode.json"
-  
+
   # Prüfe Voraussetzungen
   if [[ ! -f "$VSCODE_THEME_FILE" ]]; then
     return
   fi
-  
+
   if [[ ! -f "$VSCODE_SETTINGS" ]]; then
     echo "Warning: VSCode settings.json not found"
     return
   fi
-  
+
   if ! command -v jq >/dev/null 2>&1; then
     echo "Warning: jq not installed, cannot update VSCode theme"
     return
   fi
-  
+
   # Parse theme info: {"name": "Theme Name", "extension": "publisher.extension"}
   local THEME_NAME_VS=$(jq -r '.name // empty' "$VSCODE_THEME_FILE" 2>/dev/null)
   local EXTENSION=$(jq -r '.extension // empty' "$VSCODE_THEME_FILE" 2>/dev/null)
-  
+
   if [[ -z "$THEME_NAME_VS" ]]; then
     echo "Warning: No theme name in vscode.json"
     return
   fi
-  
+
   # Update settings.json
   jq --arg theme "$THEME_NAME_VS" \
-     '.["workbench.colorTheme"] = $theme' \
-     "$VSCODE_SETTINGS" > "${VSCODE_SETTINGS}.tmp" && \
-  mv "${VSCODE_SETTINGS}.tmp" "$VSCODE_SETTINGS"
-  
+    '.["workbench.colorTheme"] = $theme' \
+    "$VSCODE_SETTINGS" >"${VSCODE_SETTINGS}.tmp" &&
+    mv "${VSCODE_SETTINGS}.tmp" "$VSCODE_SETTINGS"
+
   echo "  ✓ VSCode: Theme gesetzt auf '$THEME_NAME_VS'"
-  
+
   # Prüfe ob Extension installiert ist
   if [[ -n "$EXTENSION" ]]; then
     local EXT_DIR="$HOME/.vscode/extensions"
@@ -211,36 +219,36 @@ update_vscode_theme() {
 update_btop_theme() {
   local BTOP_CONFIG="$HOME/.config/btop/btop.conf"
 
-# =========================
-# Update eza theme
-# =========================
-update_eza_theme() {
-  local EZA_THEME_LINK="$HOME/.config/eza/theme.yml"
-  
-  if [[ ! -f "$THEME_PATH/eza.yml" ]]; then
-    echo "  ⚠ Warning: No eza.yml in theme (using defaults)"
-    return
-  fi
-  
-  mkdir -p "$(dirname "$EZA_THEME_LINK")"
-  ln -nsf "$HOME/.config/i3-themes/current/theme/eza.yml" "$EZA_THEME_LINK"
-  
-  echo "  ✓ eza: File listing colors updated"
-}
-  
+  # =========================
+  # Update eza theme
+  # =========================
+  update_eza_theme() {
+    local EZA_THEME_LINK="$HOME/.config/eza/theme.yml"
+
+    if [[ ! -f "$THEME_PATH/eza.yml" ]]; then
+      echo "  ⚠ Warning: No eza.yml in theme (using defaults)"
+      return
+    fi
+
+    mkdir -p "$(dirname "$EZA_THEME_LINK")"
+    ln -nsf "$HOME/.config/i3-themes/current/theme/eza.yml" "$EZA_THEME_LINK"
+
+    echo "  ✓ eza: File listing colors updated"
+  }
+
   if [[ ! -f "$THEME_PATH/btop.theme" ]]; then
     return
   fi
-  
+
   # Theme-Name aus Pfad extrahieren
   local THEME_NAME_BTOP=$(basename "$THEME_DIR")
-  
+
   # Erstelle Theme-Verzeichnis
   mkdir -p "$HOME/.config/btop/themes"
-  
+
   # Kopiere Theme-File
   cp "$THEME_PATH/btop.theme" "$HOME/.config/btop/themes/${THEME_NAME_BTOP}.theme"
-  
+
   # Update Config (wenn vorhanden)
   if [[ -f "$BTOP_CONFIG" ]]; then
     sed -i "s|^color_theme = .*|color_theme = \"${THEME_NAME_BTOP}\"|" "$BTOP_CONFIG"
