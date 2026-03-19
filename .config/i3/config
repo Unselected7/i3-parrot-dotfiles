@@ -237,9 +237,9 @@ bindsym $mod+Shift+space bar mode toggle
 
 # === THEME CONTROLS ===
 # Wallpaper wechseln (Super+Shift+W)
-bindsym $mod+Shift+w exec --no-startup-id i3-theme-bg-next
+bindsym $mod+Shift+w exec --no-startup-id $HOME/.local/bin/i3-theme-bg-next
 # Theme wechseln (Super+Shift+Y)
-bindsym $mod+Shift+y exec --no-startup-id i3-theme-next
+bindsym $mod+Shift+y exec --no-startup-id $HOME/.local/bin/i3-theme-next
 
 # === SYSTEM CONTROLS ===
 # Reload the configuration file (Super+Shift+C)
