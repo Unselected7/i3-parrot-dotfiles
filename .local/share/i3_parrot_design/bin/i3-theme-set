@@ -30,17 +30,16 @@ if [[ -z "$THEME_NAME" ]]; then
   exit 1
 fi
 
-# Theme-Namen normalisieren (damit sowohl "nervige" Namen wie "Catppuccin Latte"
-# als auch UNIX freundliche Ordnernamen wie "catppuccin-latte" funktionieren)
-# 1. Konvertiere nervige Namen zurück zu Ordner-Format (lowercase, Leerzeichen → Bindestriche)
-NORMALIZED_NAME=$(echo "$THEME_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g')
+# Theme-Namen normalisieren (damit sowohl "Catppuccin Latte" als auch
+# UNIX freundliche Ordnernamen wie "catppuccin-latte" funktionieren)
 
+# 1. Konvertiere Namen mit Leerzeichen zurück zu Ordner-Format (lowercase, Leerzeichen → Bindestriche)
+NORMALIZED_NAME=$(echo "$THEME_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g')
 # 2. Fuzzy-Suche mit normalisiertem Namen (case-insensitive, partial match)
 # -L folgt Symlinks, -mindepth 1 überspringt das themes/-Verzeichnis selbst
 # 2. Erst exakten Match versuchen, dann partial match
 THEME_DIR=$(find -L "$THEMES_DIR" -mindepth 1 -maxdepth 1 -type d -iname "$NORMALIZED_NAME")
-
-# Falls nicht gefunden, partial match (aber mit Wort-Grenzen)
+# Falls nicht gefunden, partial match versuchen (z.B. "latte" findet "catppuccin-latte")
 if [[ -z "$THEME_DIR" ]]; then
   THEME_DIR=$(find -L "$THEMES_DIR" -mindepth 1 -maxdepth 1 -type d -iname "*$NORMALIZED_NAME*" | head -n1)
 fi
@@ -55,10 +54,16 @@ fi
 THEME_PATH="$THEME_DIR"
 
 # ============================================================================
-# 1. SYMLINK SETZEN - Wichtigster Schritt!
+# 1. SYMLINK SETZEN in .config/i3-themes/current/ setzen:
+# Wesentlicher Mechanismus für das Theming
 # ============================================================================
-# Der current/theme Symlink zeigt auf das aktive Theme.
-# Alacritty und Kitty lesen direkt aus diesem Symlink.
+# Der current/theme Symlink zeigt auf das aktive Theme-Verzeichnis.
+# In diesem sind die App-spezifischen Theme-Definitionen
+# (alacritty.toml, kitty.conf, neovim.lua, vscode.json, btop.theme) enthalten.
+# # Alacritty und Kitty lesen direkt aus diesem Symlink.
+# Für Neovim und VsCode kopieren wir die Theme-Definitionen
+# in die jeweiligen Config-Verzeichnisse - dafür werden unter 3. entsprechende
+# update-Funktionen definiert.
 # ============================================================================
 
 echo "Setting theme to: $(basename "$THEME_DIR")"
@@ -82,7 +87,8 @@ fi
 # ============================================================================
 
 # ----------------------------------------------------------------------------
-# ALACRITTY - Macht nichts (Symlink genügt)
+# ALACRITTY - ist nur der Vollständigkeit halber aufgeführt.
+# Die Funktion macht nichts (Symlink genügt) hier.
 # ----------------------------------------------------------------------------
 # Alacritty liest beim Start: ~/.config/i3-themes/current/theme/alacritty.toml
 # Der Symlink zeigt jetzt auf das neue Theme → neue Fenster haben neues Theme
@@ -98,9 +104,10 @@ update_alacritty_theme() {
 # KITTY - Bereinigt alte includes + reload
 # ----------------------------------------------------------------------------
 # Kitty nutzt: include ~/.config/i3-themes/current/theme/kitty.conf
-# Beim Theme-Wechsel entfernen wir alte include-Zeilen aus kitty.conf und fügen die neue hinzu.
-# Da kitty mit kitten themes arbeitet, wäre es sonst möglich,
-# dass alte Theme-Definitionen in kitty.conf verbleiben und zu Konflikten führen.
+# Beim Theme-Wechsel entfernen wir alte include-Zeilen aus kitty.conf
+# und fügen die neue hinzu. Der Extra-Schritt ist nötig, da kitty mit kitten
+# themes arbeitet, die ebenfalls in der kitty.conf inkludiert werden und
+# zu Konflikten bzw. Zweideutigkeiten in der config Datei führen können. .
 # ----------------------------------------------------------------------------
 
 update_kitty_theme() {
@@ -132,13 +139,21 @@ update_kitty_theme() {
 # ----------------------------------------------------------------------------
 # NEOVIM - Kopiert Theme-Plugin-Definition
 # ----------------------------------------------------------------------------
-# Neovim nutzt LazyVim mit lazy.nvim Plugin-Manager
-# Theme-Definition: ~/.config/nvim/lua/user/i3_theme.lua
-# Beim nächsten nvim-Start installiert lazy.nvim automatisch das Plugin
+# Neovim nutzt LazyVim mit dem Plugin-Manager lazy.nvim.
+# Die Theme-Definition befindet sich in:
+#      ~/.config/nvim/lua/plugins/i3_theme.lua
+## Beim nächsten nvim-Start installiert lazy.nvim automatisch das Plugin.
+# Im Falle einer LazyVim Installation funktioniert das "out of the box".
+#
+#Bei anderen Installationen, die gleichwohl den lazy.nvim plugin-Manager
+# nutzen, könnte es nötig sein, das ~/.config/nvim/lua/plugins Verzeichnis wie auch das theme Plugin selbst manuell erst einzubinden.
+# Dies geschieht in aller Regel über die Konfiguration der Dateien
+# init.lua und lazy.lua im Stammverzeichnis der nvim Konfiguration.
+#
 # ----------------------------------------------------------------------------
 
 update_neovim_theme() {
-  local NVIM_THEME_FILE="$HOME/.config/nvim/lua/user/i3_theme.lua"
+  local NVIM_THEME_FILE="$HOME/.config/nvim/lua/plugins/i3_theme.lua"
 
   if [[ ! -f "$THEME_PATH/neovim.lua" ]]; then
     echo "Warning: No neovim.lua in theme"
