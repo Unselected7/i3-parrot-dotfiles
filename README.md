@@ -28,6 +28,16 @@ that applies a single theme definition across multiple applications
 | **Installation Automation** | Single command install with dependency checking |
 | **Modular Design** | XDG-compliant, easy to extend or customize |
 
+## Features Demo
+
+### Theme Change
+
+![Theme Change Demo](screenshots/theme_change.gif)
+
+### Rofi System Manager
+
+![Rofi Menu Demo](screenshots/system_manager.gif)
+
 ## Keybindings
 
 Core theme and system controls:
@@ -74,6 +84,7 @@ i3_parrot_dotfiles/
 │   ├── bin/                   # Scripts (symlinks)
 │   └── share/i3_parrot_design/
 │       ├── bin/               # Actual scripts
+        ├── default/           # Default Configs bash and apps
 │       └── themes/            # 14 theme directories
 
 ├── install.sh                 # Installation script
@@ -145,8 +156,7 @@ bindsym $mod+x exec --no-startup-id your-command
 
 ## Optional Shell Configuration
 
-Optional but recommended: add shell aliases, zoxide and fuzzy_find patterns for enhanced productivity.
-
+Optional: add shell aliases, zoxide and fuzzy_find patterns for enhanced productivity.
 You can use preconfigured shell configurations by souring `~/.local/share/i3_parrot_design/default/bash/rc` in your `~/.bashrc`:
 
 ```bash
@@ -164,9 +174,8 @@ Developed by Unslected7 as part of his Linux-Learning-Journey.
 
 ## 🤝 Credits
 
-- **Theme-System** - Adaptiert von [Omarchy](https://github.com/ohmarch/omarchy)
-- **i3 Community** - Inspiration und Tutorials
-- **Parrot OS** - Exzellente Debian-Distribution
+- **Theme-System** - Adapted from [Omarchy](https://github.com/ohmarch/omarchy)
+- **Parrot OS** - Great Linux distribution for security and privacy
 
 ## 📝 Lizenz
 
